@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Gestion des étudiants</title>
+    
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Système de Gestion des Étudiants</h1>
+        </header>
+        
+        <div class="main-content">
+            <div id="message" class="message"></div>
+            
+            <div class="section">
+                <h2>Ajouter un nouvel étudiant</h2>
+                <div class="form-group">
+                    <label for="nom">Nom :</label>
+                    <input type="text" id="nom" placeholder="Entrez le nom" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="prenom">Prénom :</label>
+                    <input type="text" id="prenom" placeholder="Entrez le prénom" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email :</label>
+                    <input type="email" id="email" placeholder="Entrez l'email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="age">Âge :</label>
+                    <input type="number" id="age" placeholder="Entrez l'âge" min="16" max="50" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="filiere">Filière :</label>
+                    <select id="filiere" required>
+                        <option value="">Sélectionnez une filière</option>
+                        <option value="WDMD">WDMD</option>
+                        <option value="GIE">GIE</option>
+                        <option value="IDIA">IDIA</option>
+                        <option value="CDL">CDL</option>
+                        <option value="ADI">ADI</option>
+                        <option value="Génie Civil">Génie Civil</option>
+                        <option value="DMN">DMN</option>
+                        <option value="Reseau">Reseau</option>
+                    </select>
+                </div>
+                
+                <div class="btn-group">
+                    <button type="button" class="btn btn-primary" onclick="addStudent()">
+                        Ajouter l'étudiant
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                        Réinitialiser
+                    </button>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>Liste des étudiants</h2>
+                    <button class="btn btn-success" onclick="loadStudents()">
+                        Actualiser la liste
+                    </button>
+                </div>
+                
+                <div id="loading" class="loading">Chargement des étudiants...</div>
+                
+                <table id="students-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nom</th>
+                            <th>Prénom</th>
+                            <th>Email</th>
+                            <th>Âge</th>
+                            <th>Filière</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="students-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Modifier l'étudiant</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            
+            <input type="hidden" id="edit-id">
+            
+            <div class="form-group">
+                <label for="edit-nom">Nom :</label>
+                <input type="text" id="edit-nom" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-prenom">Prénom :</label>
+                <input type="text" id="edit-prenom" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-email">Email :</label>
+                <input type="email" id="edit-email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-age">Âge :</label>
+                <input type="number" id="edit-age" min="16" max="50" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-filiere">Filière :</label>
+                <select id="edit-filiere" required>
+                    <option value="Informatique">Informatique</option>
+                    <option value="Mathématiques">Mathématiques</option>
+                    <option value="Physique">Physique</option>
+                    <option value="Chimie">Chimie</option>
+                    <option value="Biologie">Biologie</option>
+                    <option value="Génie Civil">Génie Civil</option>
+                    <option value="Économie">Économie</option>
+                    <option value="Droit">Droit</option>
+                </select>
+            </div>
+            
+            <div class="btn-group">
+                <button type="button" class="btn btn-primary" onclick="updateStudent()">
+                    Enregistrer
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">
+                    Annuler
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:5000/students";
+        
+        function showMessage(message, isError = false) {
+            const msgDiv = document.getElementById("message");
+            msgDiv.textContent = message;
+            msgDiv.className = isError ? "message error" : "message success";
+            msgDiv.style.display = "block";
+            
+            setTimeout(() => {
+                msgDiv.style.display = "none";
+            }, 5000);
+        }
+        
+        function resetForm() {
+            document.getElementById("nom").value = "";
+            document.getElementById("prenom").value = "";
+            document.getElementById("email").value = "";
+            document.getElementById("age").value = "";
+            document.getElementById("filiere").value = "";
+            showMessage("Formulaire réinitialisé");
+        }
+        
+        async function loadStudents() {
+            try {
+                document.getElementById("loading").style.display = "block";
+                
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const students = await response.json();
+                const tbody = document.getElementById("students-body");
+                tbody.innerHTML = "";
+                
+                if (students.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+                                <h3>Aucun étudiant trouvé</h3>
+                                <p>Commencez par ajouter un étudiant.</p>
+                            </td>
+                        </tr>
+                    `;
+                    showMessage("Aucun étudiant dans la base de données");
+                    return;
+                }
+                
+                students.forEach(student => {
+                    const row = document.createElement("tr");
+                    row.id = `student-${student.id}`;
+                    row.innerHTML = `
+                        <td>${student.id}</td>
+                        <td>${student.nom}</td>
+                        <td>${student.prenom}</td>
+                        <td>${student.email}</td>
+                        <td>${student.age}</td>
+                        <td>${student.filiere}</td>
+                        <td class="actions">
+                            <button class="btn btn-warning" onclick="openEditModal(${student.id})">
+                                Modifier
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteStudent(${student.id})">
+                                Supprimer
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                showMessage(`${students.length} étudiants chargés avec succès`);
+                
+            } catch (error) {
+                console.error("Erreur:", error);
+                showMessage(`Erreur de connexion: ${error.message}`, true);
+            } finally {
+                document.getElementById("loading").style.display = "none";
+            }
+        }
+        
+        async function addStudent() {
+            try {
+                const nom = document.getElementById("nom").value.trim();
+                const prenom = document.getElementById("prenom").value.trim();
+                const email = document.getElementById("email").value.trim();
+                const ageStr = document.getElementById("age").value.trim();
+                const filiere = document.getElementById("filiere").value;
+                
+                if (!nom || !prenom || !email || !ageStr || !filiere) {
+                    showMessage("Veuillez remplir tous les champs", true);
+                    return;
+                }
+                
+                const age = parseInt(ageStr);
+                if (isNaN(age) || age < 16 || age > 50) {
+                    showMessage("L'âge doit être entre 16 et 50 ans", true);
+                    return;
+                }
+                
+                const data = { nom, prenom, email, age, filiere };
+                
+                showMessage("Ajout de l'étudiant en cours...");
+                
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText);
+                }
+                
+                resetForm();
+                await loadStudents();
+                
+                const result = await response.json();
+                showMessage(`Étudiant ajouté!`);
+                
+            } catch (error) {
+                console.error("Erreur:", error);
+                showMessage(`Erreur: ${error.message}`, true);
+            }
+        }
+        
+        function openEditModal(studentId) {
+            const row = document.getElementById(`student-${studentId}`);
+            if (row) {
+                document.getElementById("edit-id").value = studentId;
+                document.getElementById("edit-nom").value = row.cells[1].textContent;
+                document.getElementById("edit-prenom").value = row.cells[2].textContent;
+                document.getElementById("edit-email").value = row.cells[3].textContent;
+                document.getElementById("edit-age").value = row.cells[4].textContent;
+                document.getElementById("edit-filiere").value = row.cells[5].textContent;
+                
+                document.getElementById("editModal").style.display = "flex";
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById("editModal").style.display = "none";
+        }
+        
+        async function updateStudent() {
+            try {
+                const studentId = document.getElementById("edit-id").value;
+                
+                if (!studentId) {
+                    showMessage("ID étudiant manquant", true);
+                    return;
+                }
+                
+                const updatedData = {
+                    nom: document.getElementById("edit-nom").value.trim(),
+                    prenom: document.getElementById("edit-prenom").value.trim(),
+                    email: document.getElementById("edit-email").value.trim(),
+                    age: parseInt(document.getElementById("edit-age").value.trim()),
+                    filiere: document.getElementById("edit-filiere").value
+                };
+                
+                if (!updatedData.nom || !updatedData.prenom || !updatedData.email || 
+                    !updatedData.age || !updatedData.filiere) {
+                    showMessage("Tous les champs sont requis", true);
+                    return;
+                }
+                
+                if (updatedData.age < 16 || updatedData.age > 50) {
+                    showMessage("L'âge doit être entre 16 et 50 ans", true);
+                    return;
+                }
+                
+                showMessage("Mise à jour en cours...");
+                
+                const response = await fetch(`${API_URL}/${studentId}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(updatedData)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText);
+                }
+                
+                closeModal();
+                await loadStudents();
+                
+                showMessage("Étudiant mis à jour avec succès!");
+                
+            } catch (error) {
+                console.error("Erreur:", error);
+                showMessage(`Erreur: ${error.message}`, true);
+            }
+        }
+        
+        async function deleteStudent(studentId) {
+            if (!confirm("Êtes-vous sûr de vouloir supprimer cet étudiant?")) {
+                return;
+            }
+            
+            try {
+                showMessage("Suppression en cours...");
+                
+                const response = await fetch(`${API_URL}/${studentId}`, {
+                    method: "DELETE"
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText);
+                }
+                
+                const row = document.getElementById(`student-${studentId}`);
+                if (row) {
+                    row.remove();
+                }
+                
+                showMessage("Étudiant supprimé avec succès!");
+                
+                await loadStudents();
+                
+            } catch (error) {
+                console.error("Erreur:", error);
+                showMessage(`Erreur: ${error.message}`, true);
+            }
+        }
+        
+        // Fermer le modal en cliquant à l'extérieur
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+        
+        // Fermer le modal avec la touche Échap
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+        
+        // Charger les étudiants au démarrage
+        document.addEventListener('DOMContentLoaded', loadStudents);
+    </script>
+</body>
+</html>
